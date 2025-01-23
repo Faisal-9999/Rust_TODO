@@ -4,11 +4,16 @@ use egui::*;
 use std::fmt::format;
 use std::fs::{File, OpenOptions};
 use std::io::{self, BufRead};
+use std::io::Write;
 
 pub struct TodoApp {
     current_page : Page,
     input_text : String,
     todo_list : Vec<String>,
+}
+
+pub enum CustomeError {
+
 }
 
 pub enum Page {
@@ -17,9 +22,7 @@ pub enum Page {
     ViewPage,
 }
 
-//NEED TO ADD FILE HANDLING BEFORE PROCEEDING ANY FURTHER
-//NEED TO ADD FILE HANDLING TO VIEW, EDIT AND SAVE TODOS
-
+//OVERHAUL ERROR SYSTEM
 
 impl TodoApp {
     pub fn new() -> TodoApp {
@@ -55,21 +58,26 @@ impl TodoApp {
         Ok(())
     }
 
-    fn save_database(&mut self) {
+    fn save_database(&mut self) -> Result<(), String> {
+        let file = OpenOptions::new()
+                                         .read(false)
+                                         .write(true)
+                                         .open("database_todo.txt")
+                                         .map_err(|_| format!("Error Occurred While Opening File"))
+                                         .unwrap();
+        
+        let mut writer = io::BufWriter::new(file);
+        for line in &self.todo_list {
+            let _ = writeln!(writer, "{}", line).map_err(|_| format!("Error Occurred While Writing To Line"));
+        }
 
-    }
-
-    fn save_todo(todo : &str) {
-
-    }
-
-    fn load_todolist() -> Vec<String> {
-        Vec::new()
+        Ok(())
     }
 }
 
 impl eframe::App for TodoApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        // ADD LOAD DATABASE HERE OR SOMEWHERE ELSE AFTER OVERHAULING ERROR SYSTEM
         match self.current_page {
             Page::HomePage => {
                 egui::TopBottomPanel::top("home_top").show(ctx, |ui| {
@@ -102,6 +110,12 @@ impl eframe::App for TodoApp {
 
                     if ui.button("Save Todo").clicked() {
                         self.todo_list.push(self.input_text.to_string());
+                        
+
+                        //YOU WERE ABOUT TO TADD THE SAVE DATABASE FUNCTION HERE BUT NOW YOU NEED TO OVERHAUL THE ERROR SYSTEM
+                        //FIX ERROR SYSTEM FOR THE IMPLEMENTATION BLOCK ABOVE THIS ONE THEN YOU CAN PROCEED FURTHER 
+                        //SO FAR YOU HAVE FIXED THE PROGRAM TO SAVE THE TODOS IN THE STRUCT VECTOR BUT NOT IN A FILE
+                        //AFTER USING THE SAVE DATABASE FUNCTION YOUR TODOS WILL BE SAVED TO A FILE
                     }
 
                     if ui.button("Back").clicked() {
