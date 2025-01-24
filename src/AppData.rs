@@ -1,22 +1,22 @@
 use eframe::egui;
-use egui::*;
 
-use std::fmt::format;
 use std::fs::{File, OpenOptions};
 use std::io::{self, BufRead};
 use std::io::Write;
+
+use crate::custom_err::CustomError;
 
 pub struct TodoApp {
     current_page : Page,
     input_text : String,
     todo_list : Vec<String>,
+    error_type : Option<CustomError>,
+    error_message : String,
+    error_occurred : bool,
+    error_show : bool,
 }
 
-pub enum CustomeError {
-
-}
-
-pub enum Page {
+enum Page {
     HomePage,
     AddPage,
     ViewPage,
@@ -25,29 +25,45 @@ pub enum Page {
 //OVERHAUL ERROR SYSTEM
 
 impl TodoApp {
+
     pub fn new() -> TodoApp {
         TodoApp {
             current_page : Page::HomePage,
             input_text : String::new(),
             todo_list : Vec::new(),
+            error_message : String::new(),
+            error_type : None,
+            error_occurred : false,
+            error_show : false,
         }
     }
 
-    fn load_databse(&mut self) -> Result<(), String> {
+    fn handle_error(&mut self, result : Result<(), CustomError>) -> Option<CustomError> {
+        match result {
+            Ok(_) => None,
+            Err(error) => {
+                self.error_message = error.to_string();
+                self.error_occurred = true;
+                self.error_show = true;
+                Some(error)
+            }
+        }
+    }
+
+    fn load_databse(&mut self) -> Result<(), CustomError> {
         
         let file = OpenOptions::new()
-                                 .read(true)
-                                 .write(false)
-                                 .create(true)
-                                 .open("database_todo.txt")
-                                 .map_err(|_| format!("Error Occurred While Opening File"))
-                                 .unwrap();
+                                .read(true)
+                                .write(false)
+                                .create(true)
+                                .open("database_todo.txt")
+                                .map_err(|_| CustomError::DatabaseLoadError)?;
         
         let reader = io::BufReader::new(file);
         let mut lines: Vec<String> = Vec::new();
 
         for line in reader.lines() {
-            let line = line.map_err(|_| format!("Error Occurred While Reading Line")).unwrap();
+            let line = line.map_err(|_| CustomError::WriteLineError).unwrap();
             lines.push(line);
         }
 
@@ -58,17 +74,17 @@ impl TodoApp {
         Ok(())
     }
 
-    fn save_database(&mut self) -> Result<(), String> {
+    fn save_database(&mut self) -> Result<(), CustomError> {
         let file = OpenOptions::new()
-                                         .read(false)
-                                         .write(true)
-                                         .open("database_todo.txt")
-                                         .map_err(|_| format!("Error Occurred While Opening File"))
-                                         .unwrap();
+                            .read(false)
+                            .write(true)
+                            .open("database_todo.txt")
+                            .map_err(|_| CustomError::DatabaseSaveError)?;
         
         let mut writer = io::BufWriter::new(file);
+
         for line in &self.todo_list {
-            let _ = writeln!(writer, "{}", line).map_err(|_| format!("Error Occurred While Writing To Line"));
+            let _ = writeln!(writer, "{}", line).map_err(|_| CustomError::WriteLineError);
         }
 
         Ok(())
@@ -110,12 +126,7 @@ impl eframe::App for TodoApp {
 
                     if ui.button("Save Todo").clicked() {
                         self.todo_list.push(self.input_text.to_string());
-                        
-
-                        //YOU WERE ABOUT TO TADD THE SAVE DATABASE FUNCTION HERE BUT NOW YOU NEED TO OVERHAUL THE ERROR SYSTEM
-                        //FIX ERROR SYSTEM FOR THE IMPLEMENTATION BLOCK ABOVE THIS ONE THEN YOU CAN PROCEED FURTHER 
-                        //SO FAR YOU HAVE FIXED THE PROGRAM TO SAVE THE TODOS IN THE STRUCT VECTOR BUT NOT IN A FILE
-                        //AFTER USING THE SAVE DATABASE FUNCTION YOUR TODOS WILL BE SAVED TO A FILE
+                        self.input_text.clear();
                     }
 
                     if ui.button("Back").clicked() {
@@ -127,6 +138,30 @@ impl eframe::App for TodoApp {
                 egui::TopBottomPanel::top("Add Page Top").show(ctx, |ui| {
                     ui.label("View Page")
                 });
+
+
+                //YOU FIXED THE PROBLEM WITH THE VIEW PAGE ERROR OCCURRED POP UP NOT CLOSING NOW FIND A WAY TO MAKE IT WORK FOR THE ADD PAGE
+
+                if !self.error_occurred {
+                    let holder = self.load_databse();
+                    self.error_type = self.handle_error(holder);
+                }
+
+                if self.error_show {
+                    egui::Window::new("ERROR OCCURRED")
+                        .collapsible(false)
+                        .resizable(false)
+                        .show(ctx, |ui| {
+                            ui.label(&self.error_message);
+
+                        if ui.button("Close").clicked() {
+                            self.error_message = String::new();
+                            self.error_occurred = true;
+                            self.error_show = false;
+                            self.error_type = None;
+                        }
+                    });
+                };
         
                 egui::CentralPanel::default().show(ctx, |ui| {
                     egui::ScrollArea::vertical()
@@ -140,6 +175,7 @@ impl eframe::App for TodoApp {
 
                     if ui.button("Back").clicked() {
                         self.current_page = Page::HomePage;
+                        self.error_occurred = false;
                     }
                 });
             },

@@ -1,6 +1,7 @@
 use eframe::*;
 
 mod AppData;
+mod custom_err;
 
 use crate::AppData::TodoApp;
 
