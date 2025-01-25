@@ -1,8 +1,10 @@
 use eframe::egui;
+use egui::debug_text::print;
 
 use std::fs::{File, OpenOptions};
 use std::io::{self, BufRead};
 use std::io::Write;
+use std::path::Path;
 
 use crate::custom_err::CustomError;
 
@@ -27,6 +29,9 @@ enum Page {
 impl TodoApp {
 
     pub fn new() -> TodoApp {
+
+        TodoApp::create_database();
+
         TodoApp {
             current_page : Page::HomePage,
             input_text : String::new(),
@@ -50,41 +55,48 @@ impl TodoApp {
         }
     }
 
+    fn create_database() {
+        let path = "todo.txt";
+
+        if !Path::new(path).exists() {
+            File::create(path).expect("Error While Creating File");
+        }
+    }
+
     fn load_databse(&mut self) -> Result<(), CustomError> {
         
-        let file = OpenOptions::new()
+        let file: File = OpenOptions::new()
                                 .read(true)
-                                .write(false)
+                                .write(true)
                                 .create(true)
-                                .open("database_todo.txt")
+                                .open("todo.txt")
                                 .map_err(|_| CustomError::DatabaseLoadError)?;
         
-        let reader = io::BufReader::new(file);
+        let reader: io::BufReader<File> = io::BufReader::new(file);
         let mut lines: Vec<String> = Vec::new();
 
         for line in reader.lines() {
-            let line = line.map_err(|_| CustomError::WriteLineError).unwrap();
+            let line = line.map_err(|_| CustomError::WriteLineError)?;
             lines.push(line);
         }
 
         self.todo_list = lines;
-
-        println!("Successfully Loaded Database");
 
         Ok(())
     }
 
     fn save_database(&mut self) -> Result<(), CustomError> {
         let file = OpenOptions::new()
-                            .read(false)
+                            .read(true)
                             .write(true)
-                            .open("database_todo.txt")
+                            .create(true)
+                            .open("todo.txt")
                             .map_err(|_| CustomError::DatabaseSaveError)?;
         
         let mut writer = io::BufWriter::new(file);
 
         for line in &self.todo_list {
-            let _ = writeln!(writer, "{}", line).map_err(|_| CustomError::WriteLineError);
+            let _ = writeln!(writer, "{}", line).map_err(|_| CustomError::WriteLineError)?;
         }
 
         Ok(())
@@ -126,13 +138,36 @@ impl eframe::App for TodoApp {
 
                     if ui.button("Save Todo").clicked() {
                         self.todo_list.push(self.input_text.to_string());
+
+                        if !self.error_occurred {
+                            let holder = self.save_database();
+                            self.error_type = self.handle_error(holder);
+                        }
+
                         self.input_text.clear();
                     }
 
                     if ui.button("Back").clicked() {
                         self.current_page = Page::HomePage;
+                        self.error_occurred = false;
                     }
                 });
+
+                if self.error_show {
+                    egui::Window::new("ERROR OCCURRED")
+                        .collapsible(false)
+                        .resizable(false)
+                        .show(ctx, |ui| {
+                            ui.label(&self.error_message);
+
+                        if ui.button("Close").clicked() {
+                            self.error_message = String::new();
+                            self.error_occurred = true;
+                            self.error_show = false;
+                            self.error_type = None;
+                        }
+                    });
+                }
             },
             Page::ViewPage => {
                 egui::TopBottomPanel::top("Add Page Top").show(ctx, |ui| {
@@ -161,7 +196,7 @@ impl eframe::App for TodoApp {
                             self.error_type = None;
                         }
                     });
-                };
+                }
         
                 egui::CentralPanel::default().show(ctx, |ui| {
                     egui::ScrollArea::vertical()
