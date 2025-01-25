@@ -38,7 +38,7 @@ impl DateTimehandler {
 
         ui.label("Select Time: ");
         ui.horizontal(|ui| {
-            ui.label("Hour: ")
+            ui.label("Hour: ");
             if ui.add(DragValue::new(&mut self.selected_hour).range(0..=23)).changed() {
                 self.selected_hour = self.selected_hour % 24;
             }
