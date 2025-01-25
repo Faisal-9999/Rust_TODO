@@ -6,3 +6,5 @@ edition = "2021"
 [dependencies]
 eframe = "0.30.0"
 egui = "0.30.0"
+chrono = "0.4.39"
+notify-rust = "4.11.4"
