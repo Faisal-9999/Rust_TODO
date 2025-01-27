@@ -1,5 +1,4 @@
 use eframe::egui;
-use chrono::{Date, Datelike, NaiveDate, Timelike, Utc};
 
 use std::fs::{File, OpenOptions};
 use std::io::{self, BufRead};
@@ -18,18 +17,18 @@ pub struct TodoApp {
     error_message : String,
     error_occurred : bool,
     error_show : bool,
-    date_chosen : NaiveDate,
-    hour_chosen : u32,
-    minute_chosen : u32,
     current_todo : Todo,
 }
 
-//ADD A NOTIFICATION SYSTEM
+//ADD AN EDIT TODO and delete todo option
+//NOTIFICATION FEATURE HAS BEEN ABANDONED SINCE YOU ARE ASS AT RUST
 
 enum Page {
     HomePage,
     AddPage,
     ViewPage,
+    EditPage,
+    DeletePage,
 }
 
 impl TodoApp {
@@ -46,9 +45,6 @@ impl TodoApp {
             error_type : None,
             error_occurred : false,
             error_show : false,
-            date_chosen : Utc::now().date_naive(),
-            hour_chosen : 0,
-            minute_chosen : 0,
             current_todo : Todo::default(),
         }
     }
@@ -71,6 +67,27 @@ impl TodoApp {
         if !Path::new(path).exists() {
             File::create(path).expect("Error While Creating File");
         }
+    }
+
+    //MAKE THEIR PAGES AND ADD THE FRONT END SHIT FOR TO TAKE INPUT FOR THESE FUNCTIONS TO WORK
+    fn delete_todo(&mut self, index : usize) -> Result<(), CustomError> {
+        if index < self.todo_list.len() {
+            Err(CustomError::InvalidIndexError)?
+        }
+
+        self.todo_list.remove(index);
+
+        Ok(())
+    }
+
+    fn edit_todo(&mut self, index : usize, new_text : String) -> Result<(), CustomError> {
+        if index < self.todo_list.len() {
+            Err(CustomError::InvalidIndexError)?
+        }
+
+        self.todo_list[index].text = new_text;
+
+        Ok(())
     }
 
     fn load_databse(&mut self) -> Result<(), CustomError> {
@@ -191,9 +208,6 @@ impl eframe::App for TodoApp {
                     ui.label("View Page")
                 });
 
-
-                //YOU FIXED THE PROBLEM WITH THE VIEW PAGE ERROR OCCURRED POP UP NOT CLOSING NOW FIND A WAY TO MAKE IT WORK FOR THE ADD PAGE
-
                 if !self.error_occurred {
                     let holder = self.load_databse();
                     self.error_type = self.handle_error(holder);
@@ -220,7 +234,8 @@ impl eframe::App for TodoApp {
                         .max_height(100.0)
                         .show(ui, |ui| {
                             for todo in &self.todo_list  {
-                                ui.label(format!("{}  Date: {} Time: {}, {}", todo.text.clone(), todo.selected_date.to_string().clone(), todo.selected_hour.to_string().clone(), todo.selected_minute.to_string().clone()));
+                                ui.label(format!("{}  Date: {} Time: {}, {}", todo.text.clone(), todo.selected_date.to_string().clone(), 
+                                todo.selected_hour.to_string().clone(), todo.selected_minute.to_string().clone()));
                             }
                         }
                     );
@@ -231,6 +246,12 @@ impl eframe::App for TodoApp {
                     }
                 });
             },
+            Page::EditPage => {
+
+            },
+            Page::DeletePage => {
+
+            }
         }
     }
 }
