@@ -1,5 +1,5 @@
 use eframe::egui;
-use egui::debug_text::print;
+use chrono::{Date, Datelike, NaiveDate, Timelike, Utc};
 
 use std::fs::{File, OpenOptions};
 use std::io::{self, BufRead};
@@ -7,16 +7,23 @@ use std::io::Write;
 use std::path::Path;
 
 use crate::custom_err::CustomError;
+use crate::todo::Todo;
 
 pub struct TodoApp {
     current_page : Page,
     input_text : String,
-    todo_list : Vec<String>,
+    todo_list : Vec<Todo>,
     error_type : Option<CustomError>,
     error_message : String,
     error_occurred : bool,
     error_show : bool,
 }
+
+//MAKE CHANGES ACCOUNTING FOR THE TODO STRUCT
+//FIX ALL ERRORS AND INITIALIZE WHERE ITS SUPPOSED TO BE
+//also add a check notifications function to check notifications when the app is on
+
+
 
 enum Page {
     HomePage,
@@ -95,7 +102,7 @@ impl TodoApp {
         
         let mut writer = io::BufWriter::new(file);
 
-        for line in &self.todo_list {
+        for todo in &self.todo_list {
             let _ = writeln!(writer, "{}", line).map_err(|_| CustomError::WriteLineError)?;
         }
 

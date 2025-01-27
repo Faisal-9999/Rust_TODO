@@ -3,6 +3,7 @@ use eframe::*;
 mod app_data;
 mod custom_err;
 mod date_time_handler;
+mod todo;
 
 use crate::app_data::TodoApp;
 
