@@ -7,7 +7,8 @@ use std::io::Write;
 use std::path::Path;
 
 use crate::custom_err::CustomError;
-use crate::todo::Todo;
+use crate::to_do::Todo;
+use crate::date_time_handler::DateTimeHandler;
 
 pub struct TodoApp {
     current_page : Page,
@@ -17,21 +18,19 @@ pub struct TodoApp {
     error_message : String,
     error_occurred : bool,
     error_show : bool,
+    date_chosen : NaiveDate,
+    hour_chosen : u32,
+    minute_chosen : u32,
+    current_todo : Todo,
 }
 
-//MAKE CHANGES ACCOUNTING FOR THE TODO STRUCT
-//FIX ALL ERRORS AND INITIALIZE WHERE ITS SUPPOSED TO BE
-//also add a check notifications function to check notifications when the app is on
-
-
+//ADD A NOTIFICATION SYSTEM
 
 enum Page {
     HomePage,
     AddPage,
     ViewPage,
 }
-
-//OVERHAUL ERROR SYSTEM
 
 impl TodoApp {
 
@@ -47,6 +46,10 @@ impl TodoApp {
             error_type : None,
             error_occurred : false,
             error_show : false,
+            date_chosen : Utc::now().date_naive(),
+            hour_chosen : 0,
+            minute_chosen : 0,
+            current_todo : Todo::default(),
         }
     }
 
@@ -72,22 +75,22 @@ impl TodoApp {
 
     fn load_databse(&mut self) -> Result<(), CustomError> {
         
-        let file: File = OpenOptions::new()
-                                .read(true)
-                                .write(true)
-                                .create(true)
-                                .open("todo.txt")
-                                .map_err(|_| CustomError::DatabaseLoadError)?;
+        let file = OpenOptions::new()
+                            .read(true)
+                            .write(true)
+                            .create(true)
+                            .open("todo.txt")
+                            .map_err(|_| CustomError::DatabaseLoadError)?;
         
         let reader: io::BufReader<File> = io::BufReader::new(file);
-        let mut lines: Vec<String> = Vec::new();
+        let mut todos: Vec<Todo> = Vec::new();
 
         for line in reader.lines() {
             let line = line.map_err(|_| CustomError::WriteLineError)?;
-            lines.push(line);
+            todos.push(Todo::from_string(&line));
         }
 
-        self.todo_list = lines;
+        self.todo_list = todos;
 
         Ok(())
     }
@@ -103,7 +106,7 @@ impl TodoApp {
         let mut writer = io::BufWriter::new(file);
 
         for todo in &self.todo_list {
-            let _ = writeln!(writer, "{}", line).map_err(|_| CustomError::WriteLineError)?;
+            let _ = writeln!(writer, "{}", todo.to_string()).map_err(|_| CustomError::WriteLineError)?;
         }
 
         Ok(())
@@ -143,8 +146,14 @@ impl eframe::App for TodoApp {
                     ui.label("Enter Todo: ");
                     ui.add(egui::TextEdit::singleline(&mut self.input_text));   
 
+                    DateTimeHandler::show(ui, &mut self.current_todo);
+
+
                     if ui.button("Save Todo").clicked() {
-                        self.todo_list.push(self.input_text.to_string());
+
+                        self.current_todo.text = self.input_text.clone();
+
+                        self.todo_list.push(self.current_todo.clone());
 
                         if !self.error_occurred {
                             let holder = self.save_database();
@@ -152,6 +161,7 @@ impl eframe::App for TodoApp {
                         }
 
                         self.input_text.clear();
+                        self.current_todo = Todo::default();
                     }
 
                     if ui.button("Back").clicked() {
@@ -209,8 +219,8 @@ impl eframe::App for TodoApp {
                     egui::ScrollArea::vertical()
                         .max_height(100.0)
                         .show(ui, |ui| {
-                            for (i, todo) in self.todo_list.iter().enumerate() {
-                                ui.label(todo);
+                            for todo in &self.todo_list  {
+                                ui.label(format!("{}  Date: {} Time: {}, {}", todo.text.clone(), todo.selected_date.to_string().clone(), todo.selected_hour.to_string().clone(), todo.selected_minute.to_string().clone()));
                             }
                         }
                     );

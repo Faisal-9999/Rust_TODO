@@ -7,6 +7,8 @@ pub enum CustomError {
     WriteLineError,
     DatabaseLoadError,
     DatabaseSaveError,
+    StringToDateConversionError,
+    StringTou32ConversionError,
 }
 
 impl Error for CustomError {}
@@ -18,6 +20,8 @@ impl Display for CustomError {
             CustomError::WriteLineError => "Error While Writing Line To File",
             CustomError::DatabaseLoadError => "Error While Loading Database",
             CustomError::DatabaseSaveError => "Error While Saving Database",
+            CustomError::StringToDateConversionError => "Error While Converting String To Date",
+            CustomError::StringTou32ConversionError => "Error While Converting String to u32",
         };
 
         write!(f, "{message}")
