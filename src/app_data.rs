@@ -4,6 +4,7 @@ use std::fs::{File, OpenOptions};
 use std::io::{self, BufRead};
 use std::io::Write;
 use std::path::Path;
+use std::usize;
 
 use crate::custom_err::CustomError;
 use crate::to_do::Todo;
@@ -18,6 +19,8 @@ pub struct TodoApp {
     error_occurred : bool,
     error_show : bool,
     current_todo : Todo,
+    entered_number : String,
+    parsed_number : usize,
 }
 
 //ADD AN EDIT TODO and delete todo option
@@ -46,6 +49,8 @@ impl TodoApp {
             error_occurred : false,
             error_show : false,
             current_todo : Todo::default(),
+            entered_number : String::new(),
+            parsed_number : usize::max_value(),
         }
     }
 
@@ -128,6 +133,25 @@ impl TodoApp {
 
         Ok(())
     }
+
+    fn show_error_window(&mut self, ctx : &egui::Context) {
+
+        let error = self.error_type.clone().unwrap();
+
+        egui::Window::new("ERROR OCCURRED")
+            .collapsible(false)
+            .resizable(false)
+            .show(ctx, |ui| {
+                ui.label(error.to_string());
+
+            if ui.button("Close").clicked() {
+                self.error_message = String::new();
+                self.error_occurred = true;
+                self.error_show = false;
+                self.error_type = None;
+            }
+        });
+    }
 }
 
 impl eframe::App for TodoApp {
@@ -188,19 +212,7 @@ impl eframe::App for TodoApp {
                 });
 
                 if self.error_show {
-                    egui::Window::new("ERROR OCCURRED")
-                        .collapsible(false)
-                        .resizable(false)
-                        .show(ctx, |ui| {
-                            ui.label(&self.error_message);
-
-                        if ui.button("Close").clicked() {
-                            self.error_message = String::new();
-                            self.error_occurred = true;
-                            self.error_show = false;
-                            self.error_type = None;
-                        }
-                    });
+                    self.show_error_window(ctx);
                 }
             },
             Page::ViewPage => {
@@ -247,8 +259,16 @@ impl eframe::App for TodoApp {
                 });
             },
             Page::EditPage => {
+                egui::TopBottomPanel::top("Edit Page").show(ctx, |ui| {
+                    ui.label("Edit Page");
+                });
 
+                if !self.error_occurred {
+                    let holder = self.load_databse();
+                    self.error_type = self.handle_error(holder);
+                }
             },
+
             Page::DeletePage => {
 
             }

@@ -1,8 +1,9 @@
-use std::fmt::{self, Display, Formatter};
+use std::fmt::{self, Display};
 use std::error::Error;
 
 
 #[derive(Debug)]
+#[derive(Clone)]
 pub enum CustomError {
     WriteLineError,
     DatabaseLoadError,
@@ -10,6 +11,7 @@ pub enum CustomError {
     StringToDateConversionError,
     StringTou32ConversionError,
     InvalidIndexError,
+    UnknownError,
 }
 
 impl Error for CustomError {}
@@ -24,6 +26,7 @@ impl Display for CustomError {
             CustomError::StringToDateConversionError => "Error While Converting String To Date",
             CustomError::StringTou32ConversionError => "Error While Converting String to u32",
             CustomError::InvalidIndexError => "Invalid Index Entered Line Doesn't Exist",
+            CustomError::UnknownError => "Error Occurred While Parsing Error Type Truly A Conundrum :C"
         };
 
         write!(f, "{message}")
