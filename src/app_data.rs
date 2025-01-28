@@ -1,4 +1,5 @@
 use eframe::egui;
+use egui::Ui;
 
 use std::fs::{File, OpenOptions};
 use std::io::{self, BufRead};
@@ -97,7 +98,7 @@ impl TodoApp {
 
     fn load_databse(&mut self) -> Result<(), CustomError> {
         
-        let file = OpenOptions::new()
+        let file: File = OpenOptions::new()
                             .read(true)
                             .write(true)
                             .create(true)
@@ -134,6 +135,17 @@ impl TodoApp {
         Ok(())
     }
 
+    fn display_list(&mut self, ui :  &mut egui::Ui, ctx : &egui::Context) {
+        egui::ScrollArea::vertical()
+        .max_height(100.0)
+        .show(ui, |ui| {
+            for todo in &self.todo_list  {
+                ui.label(format!("{}  Date: {} Time: {}, {}", todo.text.clone(), todo.selected_date.to_string().clone(), 
+                todo.selected_hour.to_string().clone(), todo.selected_minute.to_string().clone()));
+            }
+        });
+    }
+
     fn show_error_window(&mut self, ctx : &egui::Context) {
 
         let error = self.error_type.clone().unwrap();
@@ -152,6 +164,19 @@ impl TodoApp {
             }
         });
     }
+
+    fn display_back_button(&mut self, ui : &mut egui::Ui) {
+        if ui.button("Back").clicked() {
+            self.current_page = Page::HomePage;
+            self.error_occurred = false;
+        }
+    }
+
+    fn display_top(&self, ctx :&egui::Context, title : String) {
+        egui::TopBottomPanel::top(title).show(ctx, |ui| {
+            ui.label("TodoList")
+        });
+    }
 }
 
 impl eframe::App for TodoApp {
@@ -159,10 +184,8 @@ impl eframe::App for TodoApp {
         // ADD LOAD DATABASE HERE OR SOMEWHERE ELSE AFTER OVERHAULING ERROR SYSTEM
         match self.current_page {
             Page::HomePage => {
-                egui::TopBottomPanel::top("home_top").show(ctx, |ui| {
-                    ui.label("TodoList")
-                });
-        
+                self.display_top(ctx, String::from("TodoList"));
+
                 egui::CentralPanel::default().show(ctx, |ui| {
         
                     if ui.button("Add Todo").clicked() {
@@ -172,6 +195,10 @@ impl eframe::App for TodoApp {
                     if ui.button("View Todos").clicked() {
                         self.current_page = Page::ViewPage;
                     }
+
+                    if ui.button("Edit Todo").clicked() {
+                        self.current_page = Page::EditPage;
+                    }
         
                     if ui.button("Exit").clicked() {
                         std::process::exit(0)
@@ -179,16 +206,13 @@ impl eframe::App for TodoApp {
                 });
             },
             Page::AddPage => {
-                egui::TopBottomPanel::top("Add Page Top").show(ctx, |ui| {
-                    ui.label("Add Page");
-                });
+                self.display_top(ctx, String::from("Add Page"));
         
                 egui::CentralPanel::default().show(ctx, |ui| {
                     ui.label("Enter Todo: ");
                     ui.add(egui::TextEdit::singleline(&mut self.input_text));   
 
                     DateTimeHandler::show(ui, &mut self.current_todo);
-
 
                     if ui.button("Save Todo").clicked() {
 
@@ -205,10 +229,11 @@ impl eframe::App for TodoApp {
                         self.current_todo = Todo::default();
                     }
 
-                    if ui.button("Back").clicked() {
-                        self.current_page = Page::HomePage;
-                        self.error_occurred = false;
+                    if self.error_show {
+                        self.show_error_window(ctx);
                     }
+
+                    self.display_back_button(ui);
                 });
 
                 if self.error_show {
@@ -216,9 +241,7 @@ impl eframe::App for TodoApp {
                 }
             },
             Page::ViewPage => {
-                egui::TopBottomPanel::top("Add Page Top").show(ctx, |ui| {
-                    ui.label("View Page")
-                });
+                self.display_top(ctx, String::from("View Page"));
 
                 if !self.error_occurred {
                     let holder = self.load_databse();
@@ -226,51 +249,45 @@ impl eframe::App for TodoApp {
                 }
 
                 if self.error_show {
-                    egui::Window::new("ERROR OCCURRED")
-                        .collapsible(false)
-                        .resizable(false)
-                        .show(ctx, |ui| {
-                            ui.label(&self.error_message);
-
-                        if ui.button("Close").clicked() {
-                            self.error_message = String::new();
-                            self.error_occurred = true;
-                            self.error_show = false;
-                            self.error_type = None;
-                        }
-                    });
+                    self.show_error_window(ctx);
                 }
         
                 egui::CentralPanel::default().show(ctx, |ui| {
-                    egui::ScrollArea::vertical()
-                        .max_height(100.0)
-                        .show(ui, |ui| {
-                            for todo in &self.todo_list  {
-                                ui.label(format!("{}  Date: {} Time: {}, {}", todo.text.clone(), todo.selected_date.to_string().clone(), 
-                                todo.selected_hour.to_string().clone(), todo.selected_minute.to_string().clone()));
-                            }
-                        }
-                    );
+                    self.display_list(ui, ctx);
 
-                    if ui.button("Back").clicked() {
-                        self.current_page = Page::HomePage;
-                        self.error_occurred = false;
-                    }
+                    self.display_back_button(ui);
                 });
             },
             Page::EditPage => {
-                egui::TopBottomPanel::top("Edit Page").show(ctx, |ui| {
-                    ui.label("Edit Page");
-                });
+                self.display_top(ctx, String::from("Edit Page"));
 
                 if !self.error_occurred {
                     let holder = self.load_databse();
                     self.error_type = self.handle_error(holder);
                 }
+
+                if self.error_show {
+                    self.show_error_window(ctx);
+                }
+
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    self.display_list(ui, ctx);
+
+                    ui.label("Enter Number Of Which Todo You Want To Edit");
+                    ui.add(egui::TextEdit::singleline(&mut self.input_text));   
+
+                    self.display_back_button(ui);
+                });
             },
 
             Page::DeletePage => {
+                egui::TopBottomPanel::top("delete_page").show(ctx, |ui| {
+                    ui.label("Delete Page")
+                });
 
+                egui::CentralPanel::default().show(ctx, |ui |{
+                    self.display_back_button(ui);
+                });
             }
         }
     }
