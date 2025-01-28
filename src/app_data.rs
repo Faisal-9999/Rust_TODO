@@ -1,5 +1,5 @@
 use eframe::egui;
-use egui::Ui;
+use egui::debug_text::print;
 
 use std::fs::{File, OpenOptions};
 use std::io::{self, BufRead};
@@ -15,13 +15,13 @@ pub struct TodoApp {
     current_page : Page,
     input_text : String,
     todo_list : Vec<Todo>,
-    error_type : Option<CustomError>,
     error_message : String,
     error_occurred : bool,
     error_show : bool,
     current_todo : Todo,
     entered_number : String,
     parsed_number : usize,
+    show_edit_options : bool,
 }
 
 //ADD AN EDIT TODO and delete todo option
@@ -46,12 +46,12 @@ impl TodoApp {
             input_text : String::new(),
             todo_list : Vec::new(),
             error_message : String::new(),
-            error_type : None,
             error_occurred : false,
             error_show : false,
             current_todo : Todo::default(),
             entered_number : String::new(),
             parsed_number : usize::max_value(),
+            show_edit_options : false,
         }
     }
 
@@ -61,6 +61,7 @@ impl TodoApp {
             Err(error) => {
                 self.error_message = error.to_string();
                 self.error_occurred = true;
+                println!("{}\n", error.to_string());
                 self.error_show = true;
                 Some(error)
             }
@@ -73,27 +74,6 @@ impl TodoApp {
         if !Path::new(path).exists() {
             File::create(path).expect("Error While Creating File");
         }
-    }
-
-    //MAKE THEIR PAGES AND ADD THE FRONT END SHIT FOR TO TAKE INPUT FOR THESE FUNCTIONS TO WORK
-    fn delete_todo(&mut self, index : usize) -> Result<(), CustomError> {
-        if index < self.todo_list.len() {
-            Err(CustomError::InvalidIndexError)?
-        }
-
-        self.todo_list.remove(index);
-
-        Ok(())
-    }
-
-    fn edit_todo(&mut self, index : usize, new_text : String) -> Result<(), CustomError> {
-        if index < self.todo_list.len() {
-            Err(CustomError::InvalidIndexError)?
-        }
-
-        self.todo_list[index].text = new_text;
-
-        Ok(())
     }
 
     fn load_databse(&mut self) -> Result<(), CustomError> {
@@ -148,19 +128,16 @@ impl TodoApp {
 
     fn show_error_window(&mut self, ctx : &egui::Context) {
 
-        let error = self.error_type.clone().unwrap();
-
         egui::Window::new("ERROR OCCURRED")
             .collapsible(false)
             .resizable(false)
             .show(ctx, |ui| {
-                ui.label(error.to_string());
+                ui.label(self.error_message.to_string());
 
             if ui.button("Close").clicked() {
                 self.error_message = String::new();
                 self.error_occurred = true;
                 self.error_show = false;
-                self.error_type = None;
             }
         });
     }
@@ -169,18 +146,20 @@ impl TodoApp {
         if ui.button("Back").clicked() {
             self.current_page = Page::HomePage;
             self.error_occurred = false;
+            self.input_text = String::new();
+            self.parsed_number = usize::MAX;
         }
     }
 
     fn display_top(&self, ctx :&egui::Context, title : String) {
-        egui::TopBottomPanel::top(title).show(ctx, |ui| {
-            ui.label("TodoList")
+        egui::TopBottomPanel::top(title.clone()).show(ctx, |ui| {
+            ui.label(title);
         });
     }
 }
 
 impl eframe::App for TodoApp {
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // ADD LOAD DATABASE HERE OR SOMEWHERE ELSE AFTER OVERHAULING ERROR SYSTEM
         match self.current_page {
             Page::HomePage => {
@@ -222,7 +201,7 @@ impl eframe::App for TodoApp {
 
                         if !self.error_occurred {
                             let holder = self.save_database();
-                            self.error_type = self.handle_error(holder);
+                            let _ = self.handle_error(holder);
                         }
 
                         self.input_text.clear();
@@ -245,7 +224,7 @@ impl eframe::App for TodoApp {
 
                 if !self.error_occurred {
                     let holder = self.load_databse();
-                    self.error_type = self.handle_error(holder);
+                    let _ = self.handle_error(holder);
                 }
 
                 if self.error_show {
@@ -254,7 +233,6 @@ impl eframe::App for TodoApp {
         
                 egui::CentralPanel::default().show(ctx, |ui| {
                     self.display_list(ui, ctx);
-
                     self.display_back_button(ui);
                 });
             },
@@ -263,7 +241,7 @@ impl eframe::App for TodoApp {
 
                 if !self.error_occurred {
                     let holder = self.load_databse();
-                    self.error_type = self.handle_error(holder);
+                    let _ = self.handle_error(holder);
                 }
 
                 if self.error_show {
@@ -273,17 +251,58 @@ impl eframe::App for TodoApp {
                 egui::CentralPanel::default().show(ctx, |ui| {
                     self.display_list(ui, ctx);
 
+                    ui.add_space(25.0);
+
                     ui.label("Enter Number Of Which Todo You Want To Edit");
-                    ui.add(egui::TextEdit::singleline(&mut self.input_text));   
+                    ui.add(egui::TextEdit::singleline(&mut self.entered_number));
+
+
+                    if ui.button("Edit").clicked() {
+
+                        match self.entered_number.trim().parse::<usize>() {
+                            Ok(value) => {
+                                self.parsed_number = value;
+                                self.show_edit_options = true;
+                            },
+                            Err(_) => {
+                                println!("Error OCCURRED IN THE ERR");
+                                self.error_message = CustomError::InvalidIndexError.to_string();
+                                self.error_show = true;
+                            }
+                        }
+                    }
+
+                    if self.show_edit_options {
+
+                        ui.add_space(25.0);
+                        ui.label("New Todo");
+                        ui.add(egui::TextEdit::singleline(&mut self.input_text));
+
+                        if ui.button("Confirm").clicked() {
+
+                            if self.parsed_number > self.todo_list.len() || self.parsed_number < 1 {
+                                self.error_show = true;
+                                self.error_message = CustomError::InvalidIndexError.to_string();
+                            }
+                            else {
+                                self.todo_list[self.parsed_number - 1].text = self.input_text.clone();
+                                self.entered_number = String::new();
+                                self.parsed_number = usize::max_value();
+                                self.input_text = String::new();
+                                self.show_edit_options = false;
+
+                                let _ = self.save_database();
+                                let _ = self.load_databse();
+                            }
+                        }
+                    }
 
                     self.display_back_button(ui);
                 });
             },
 
             Page::DeletePage => {
-                egui::TopBottomPanel::top("delete_page").show(ctx, |ui| {
-                    ui.label("Delete Page")
-                });
+                self.display_top(ctx, String::from("Delete Page"));
 
                 egui::CentralPanel::default().show(ctx, |ui |{
                     self.display_back_button(ui);
