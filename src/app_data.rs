@@ -1,5 +1,4 @@
 use eframe::egui;
-use egui::debug_text::print;
 
 use std::fs::{File, OpenOptions};
 use std::io::{self, BufRead};
@@ -115,7 +114,7 @@ impl TodoApp {
         Ok(())
     }
 
-    fn display_list(&mut self, ui :  &mut egui::Ui, ctx : &egui::Context) {
+    fn display_list(&mut self, ui :  &mut egui::Ui) {
         egui::ScrollArea::vertical()
         .max_height(100.0)
         .show(ui, |ui| {
@@ -178,6 +177,10 @@ impl eframe::App for TodoApp {
                     if ui.button("Edit Todo").clicked() {
                         self.current_page = Page::EditPage;
                     }
+
+                    if ui.button("Delete Todo").clicked() {
+                        self.current_page = Page::DeletePage;
+                    }
         
                     if ui.button("Exit").clicked() {
                         std::process::exit(0)
@@ -232,7 +235,7 @@ impl eframe::App for TodoApp {
                 }
         
                 egui::CentralPanel::default().show(ctx, |ui| {
-                    self.display_list(ui, ctx);
+                    self.display_list(ui);
                     self.display_back_button(ui);
                 });
             },
@@ -249,7 +252,7 @@ impl eframe::App for TodoApp {
                 }
 
                 egui::CentralPanel::default().show(ctx, |ui| {
-                    self.display_list(ui, ctx);
+                    self.display_list(ui);
 
                     ui.add_space(25.0);
 
