@@ -91,14 +91,16 @@ impl TodoApp {
     }
 
     fn save_database(&mut self) -> Result<(), CustomError> {
-        let file = OpenOptions::new()
+
+        let file: File = OpenOptions::new()
                             .read(true)
                             .write(true)
+                            .truncate(true)
                             .create(true)
                             .open("todo.txt")
                             .map_err(|_| CustomError::DatabaseSaveError)?;
         
-        let mut writer = io::BufWriter::new(file);
+        let mut writer: io::BufWriter<File> = io::BufWriter::new(file);
 
         for todo in &self.todo_list {
             let _ = writeln!(writer, "{}", todo.to_string()).map_err(|_| CustomError::WriteLineError)?;
@@ -140,6 +142,7 @@ impl TodoApp {
             self.error_occurred = false;
             self.input_text = String::new();
             self.parsed_number = usize::MAX;
+            self.entered_number = String::new();
         }
     }
 
@@ -156,6 +159,7 @@ impl eframe::App for TodoApp {
         match self.current_page {
             Page::HomePage => {
                 self.display_top(ctx, String::from("TodoList"));
+                let _ = self.load_databse();
 
                 egui::CentralPanel::default().show(ctx, |ui| {
         
@@ -294,19 +298,18 @@ impl eframe::App for TodoApp {
             Page::DeletePage => {
                 self.display_top(ctx, String::from("Delete Page"));
 
-                let _ = self.load_databse();
-
                 if self.error_show {
                     self.show_error_window(ctx);
                 }
 
-                egui::CentralPanel::default().show(ctx, |ui |{
+                egui::CentralPanel::default().show(ctx, |ui | {
                     self.display_list(ui);
                     ui.add_space(25.0);
                     ui.label("Enter Todo Number You Want to Delete: ");
                     ui.add(egui::TextEdit::singleline(&mut self.entered_number));
 
                     if ui.button("Delete").clicked() {
+                        
                         match self.entered_number.trim().parse::<usize>() {
                             Ok(value) => {
                                 self.parsed_number = value;
@@ -316,9 +319,12 @@ impl eframe::App for TodoApp {
                                     self.error_show = true;
                                 }
                                 else {
-                                    self.todo_list.remove(self.parsed_number - 1);
-                                    let _ = self.save_database();
-                                    let _ = self.load_databse();
+                                    self.todo_list.remove(self.parsed_number - 1usize);
+
+                                    let mut temp = self.save_database();
+                                    self.handle_error(temp);
+                                    temp = self.load_databse();
+                                    self.handle_error(temp);
                                 }
                             },
                             Err(_) => {
@@ -326,6 +332,8 @@ impl eframe::App for TodoApp {
                                 self.error_show = true;
                             }
                         }
+
+                        self.entered_number.clear();
                     }
 
                     self.display_back_button(ui);
