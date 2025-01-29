@@ -18,7 +18,7 @@ impl Error for CustomError {}
 impl Display for CustomError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
         
-        let message = match self {
+        let message: &str = match self {
             CustomError::WriteLineError => "Error While Writing Line To File",
             CustomError::DatabaseLoadError => "Error While Loading Database",
             CustomError::DatabaseSaveError => "Error While Saving Database",

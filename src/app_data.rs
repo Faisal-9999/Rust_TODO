@@ -9,6 +9,7 @@ use std::usize;
 use crate::custom_err::CustomError;
 use crate::to_do::Todo;
 use crate::date_time_handler::DateTimeHandler;
+use crate::page_data::Page;
 
 pub struct TodoApp {
     current_page : Page,
@@ -25,14 +26,6 @@ pub struct TodoApp {
 
 //ADD AN EDIT TODO and delete todo option
 //NOTIFICATION FEATURE HAS BEEN ABANDONED SINCE YOU ARE ASS AT RUST
-
-enum Page {
-    HomePage,
-    AddPage,
-    ViewPage,
-    EditPage,
-    DeletePage,
-}
 
 impl TodoApp {
 
@@ -118,8 +111,8 @@ impl TodoApp {
         egui::ScrollArea::vertical()
         .max_height(100.0)
         .show(ui, |ui| {
-            for todo in &self.todo_list  {
-                ui.label(format!("{}  Date: {} Time: {}, {}", todo.text.clone(), todo.selected_date.to_string().clone(), 
+            for (index, todo) in self.todo_list.clone().iter().enumerate()  {
+                ui.label(format!("#{}.  {}  Date: {} Time: {}, {}", index + 1, todo.text.clone(), todo.selected_date.to_string().clone(), 
                 todo.selected_hour.to_string().clone(), todo.selected_minute.to_string().clone()));
             }
         });
@@ -225,10 +218,7 @@ impl eframe::App for TodoApp {
             Page::ViewPage => {
                 self.display_top(ctx, String::from("View Page"));
 
-                if !self.error_occurred {
-                    let holder = self.load_databse();
-                    let _ = self.handle_error(holder);
-                }
+                let _ = self.load_databse();
 
                 if self.error_show {
                     self.show_error_window(ctx);
@@ -242,10 +232,7 @@ impl eframe::App for TodoApp {
             Page::EditPage => {
                 self.display_top(ctx, String::from("Edit Page"));
 
-                if !self.error_occurred {
-                    let holder = self.load_databse();
-                    let _ = self.handle_error(holder);
-                }
+                let _ = self.load_databse();
 
                 if self.error_show {
                     self.show_error_window(ctx);
@@ -307,7 +294,40 @@ impl eframe::App for TodoApp {
             Page::DeletePage => {
                 self.display_top(ctx, String::from("Delete Page"));
 
+                let _ = self.load_databse();
+
+                if self.error_show {
+                    self.show_error_window(ctx);
+                }
+
                 egui::CentralPanel::default().show(ctx, |ui |{
+                    self.display_list(ui);
+                    ui.add_space(25.0);
+                    ui.label("Enter Todo Number You Want to Delete: ");
+                    ui.add(egui::TextEdit::singleline(&mut self.entered_number));
+
+                    if ui.button("Delete").clicked() {
+                        match self.entered_number.trim().parse::<usize>() {
+                            Ok(value) => {
+                                self.parsed_number = value;
+
+                                if self.parsed_number < 1 || self.parsed_number > self.todo_list.len() {
+                                    self.error_message = CustomError::InvalidIndexError.to_string();
+                                    self.error_show = true;
+                                }
+                                else {
+                                    self.todo_list.remove(self.parsed_number - 1);
+                                    let _ = self.save_database();
+                                    let _ = self.load_databse();
+                                }
+                            },
+                            Err(_) => {
+                                self.error_message = CustomError::InvalidIndexError.to_string();
+                                self.error_show = true;
+                            }
+                        }
+                    }
+
                     self.display_back_button(ui);
                 });
             }
